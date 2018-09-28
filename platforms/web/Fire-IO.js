@@ -36,7 +36,7 @@ function FireIoClient(host, port) {
     //api connect
     this.connect = function () {
         directConnect(_host, _port);
-    };
+    };  
 
     //connect
     let directConnect = function(ihost, iport) {

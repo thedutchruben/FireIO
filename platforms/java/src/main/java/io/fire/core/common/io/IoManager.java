@@ -39,7 +39,6 @@ public class IoManager {
 
     //buffers for the websocket protocol
     private StringBuilder wsDataStream = new StringBuilder();
-    private Random random = new Random();
     @Setter private WebSocketStatus webSocketStatus = WebSocketStatus.IDLE_NEW;
 
     //protocol type
@@ -53,6 +52,8 @@ public class IoManager {
         this.channel = channel;
     }
 
+    // watch out
+    // here be dragons
     public void handleData(byte[] input, PoolHolder poolHolder) {
         if (!hasReceived) {
             byte first = input[0];
@@ -131,23 +132,26 @@ public class IoManager {
         FrameData currentFrame = new FrameData(Opcode.TEXT);
         currentFrame.setPayload(ByteBuffer.wrap(str.getBytes("UTF-8")));
         currentFrame.setTransferemasked(false);
-        List<FrameData> out = Collections.singletonList(currentFrame);
-        for (FrameData fd : out) this.channel.write(parseData(fd));
+        Collections.singletonList(currentFrame).forEach(fd -> {
+            try {
+                this.channel.write(parseData(fd));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private byte[] toByteArray(long val, int bytecount ) {
         byte[] buffer = new byte[bytecount];
         int highest = 8 * bytecount - 8;
-        for( int i = 0; i < bytecount; i++ ) {
-            buffer[i] = ( byte ) ( val >>> ( highest - 8 * i ) );
-        }
+        for( int i = 0; i < bytecount; i++ ) buffer[i] = ( byte ) ( val >>> ( highest - 8 * i ) );
         return buffer;
     }
 
     private ByteBuffer parseData(FrameData framedata) {
         ByteBuffer mes = framedata.getPayloadData();
         int byteSize = mes.remaining() <= 125 ? 1 : mes.remaining() <= 65535 ? 2 : 8;
-        ByteBuffer buf = ByteBuffer.allocate(1 + (byteSize > 1 ? byteSize + 1 : byteSize) + 0 + mes.remaining());
+        ByteBuffer buf = ByteBuffer.allocate(1 + (byteSize > 1 ? byteSize + 1 : byteSize) + mes.remaining());
         byte opt = (byte) framedata.getOpcode().getId();
         byte one = (byte) (framedata.isFin() ? -128 : 0);
         one |= opt;
@@ -155,17 +159,16 @@ public class IoManager {
         byte[] payload = toByteArray(mes.remaining(), byteSize);
         assert (payload.length == byteSize);
         if (byteSize == 1) {
-            buf.put((byte) (payload[0] | 0));
+            buf.put(payload[0]);
         } else if (byteSize == 2) {
-            buf.put((byte) ((byte) 126 | 0));
+            buf.put((byte) 126);
             buf.put(payload);
-        } else if (byteSize == 8) {
-            buf.put((byte) ((byte) 127 | 0));
+        } else {
+            buf.put((byte) 127);
             buf.put(payload);
         }
         buf.put(mes);
         mes.flip();
-        assert (buf.remaining() == 0) : buf.remaining();
         buf.flip();
         return buf;
     }

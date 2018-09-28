@@ -81,6 +81,7 @@ public class FireIoClient implements PoolHolder {
             scheduler.schedule(new TimerTask() {
                         @Override
                         public void run() {
+                            getEventHandler().fireEvent(Event.ATTEMPT_RECONNECT, null);
                             connect();
                         }
                     }, timeout);

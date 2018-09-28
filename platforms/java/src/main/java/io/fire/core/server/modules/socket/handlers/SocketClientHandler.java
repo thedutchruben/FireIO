@@ -99,7 +99,6 @@ public class SocketClientHandler implements SocketEvents {
         if (packet instanceof AuthPacket) {
             UUID parsed = UUID.fromString(((AuthPacket) packet).getUuid());
             if (server.getClientModule().getClient(parsed) == null) {
-                System.out.println("is null");
                 close();
                 return;
             } else {
@@ -156,24 +155,25 @@ public class SocketClientHandler implements SocketEvents {
 
             //validate auth token
             try {
-                UUID parsed = UUID.fromString(token);
-                if (parsed == null) {
-                    close();
-                    return;
-                }
-                connectionId = parsed;
+                connectionId = UUID.fromString(token);
             } catch (Exception e) {
                 e.printStackTrace();
                 close();
                 return;
             }
 
-            StringBuilder computeInput = new StringBuilder();
-            computeInput.append(key);
-            computeInput.append("258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-
             //compute sha-1 and then convert to base
-            String acceptKey = DatatypeConverter.printBase64Binary(MessageDigest.getInstance("SHA-1").digest((computeInput.toString()).getBytes("UTF-8")));
+            String computeInput = key +
+                    "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+            String acceptKey = DatatypeConverter
+                    .printBase64Binary(
+                            MessageDigest
+                                    .getInstance("SHA-1")
+                                    .digest(
+                                            computeInput
+                                                    .getBytes("UTF-8")
+                                    )
+                    );
 
             byte[] response = ("HTTP/1.1 101 Switching Protocols\r\n"
                     + "Connection: Upgrade\r\n"
